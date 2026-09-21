@@ -13,7 +13,7 @@ meaningful line each**:
 
 ```
 workshop-lite/
-├── grype.yaml            # shared scanner config (required — see below)
+├── grype.yaml            # shared scanner config (optional safeguard — see below)
 ├── python/               # a ~15-line web app served by werkzeug (the hero library)
 │   ├── app/  ·  Dockerfile.1-baseline  ·  Dockerfile.2-image  ·  Dockerfile.3-library
 └── java/                 # a tiny program using H2 as a real database (the hero library)
@@ -99,15 +99,15 @@ curl localhost:8080                    # -> served by werkzeug 3.0.2
 docker rm -f c
 grype py:baseline --config grype.yaml
 ```
-Expect **~2200 total, 122 critical, 497 high** — almost all of it the base OS image.
+Expect **thousands of CVEs (~2,000+), ~120 critical** — almost all of it the base OS image.
 
 ### Act 2 — Chainguard image (swap the base)
 ```bash
 docker build -f python/Dockerfile.2-image -t py:image python
 grype py:image --config grype.yaml
 ```
-Expect **~10 total, 0 critical, 1 high** — the base collapsed. The 1 high is `werkzeug`
-(`CVE-2024-34069`). Image hardening didn't touch your library.
+Expect the total to **collapse to a dozen-ish, 0 critical**. Among the remaining items is the
+vulnerable `werkzeug` (`CVE-2024-34069`, the debugger RCE) — image hardening didn't touch your library.
 `diff python/Dockerfile.1-baseline python/Dockerfile.2-image` → the `FROM` line.
 
 ### Act 3 — Chainguard Libraries (remediate)
@@ -119,8 +119,9 @@ curl localhost:8080                    # -> served by werkzeug 3.0.2+cgr.1
 docker rm -f c
 grype py:library --config grype.yaml
 ```
-Expect **9 total, 0 critical, 0 high** — `requirements.txt` unchanged. Confirm the token never
-entered the image (history shows the secret *mount*, not the value):
+Expect **0 critical, and `CVE-2024-34069` gone** — the werkzeug debugger RCE is remediated,
+`requirements.txt` unchanged. (A few newer low/medium advisories may still show — that's DB
+drift, not the point.) Confirm the token never entered the image (history shows the *mount*, not the value):
 ```bash
 docker history --no-trunc py:library | grep -c 'eyJ'    # -> 0 (no JWT in any layer)
 ```
@@ -142,16 +143,16 @@ curl localhost:8081                    # -> backed by h2-1.4.200.jar, query resu
 docker rm -f jc
 grype jv:baseline --config grype.yaml
 ```
-Expect **~269 total, 2 critical, 6 high** — H2 1.4.200 carries the 2 H2 Console RCE **criticals**
-(`CVE-2021-42392`, `CVE-2022-23221`).
+Expect a few hundred total with **2 critical** — H2 1.4.200 carries the 2 H2 Console RCE
+**criticals** (`CVE-2021-42392`, `CVE-2022-23221`).
 
 ### Act 2 — Chainguard image (swap the base)
 ```bash
 docker build -f java/Dockerfile.2-image -t jv:image java
 grype jv:image --config grype.yaml
 ```
-Expect **~5 total, 2 critical, 2 high** — the base collapsed 269→5, but the **2 H2 criticals
-persist** (they're in the library, not the OS).
+Expect the total to **collapse to a dozen-ish, but the 2 H2 criticals persist** — they're in
+the library, not the OS.
 `diff java/Dockerfile.1-baseline java/Dockerfile.2-image` → the runtime `FROM` line.
 
 ### Act 3 — Chainguard Libraries (remediate)
@@ -163,8 +164,8 @@ curl localhost:8081                    # -> backed by h2-1.4.200-0.cgr.3.jar  (r
 docker rm -f jc
 grype jv:library --config grype.yaml
 ```
-Expect **~2 total, 0 critical, 1 high** — H2 is now `1.4.200-0.cgr.3` and both criticals are
-gone. `diff java/Dockerfile.2-image java/Dockerfile.3-library` → the Maven step (remediated
+Expect **0 critical** — H2 is now `1.4.200-0.cgr.3` and both console-RCE criticals are gone.
+`diff java/Dockerfile.2-image java/Dockerfile.3-library` → the Maven step (remediated
 coordinate + a `settings.xml` built from the token secret).
 > Heads-up for the demo: the UI shows the H2 **jar name** (`h2-1.4.200-0.cgr.3.jar` at this
 > act) — that's the remediated Maven coordinate, read from the classpath. The separate line
@@ -222,7 +223,7 @@ public image can't be verified at all; you're trusting the registry and hoping.
 TOKEN=$(chainctl auth token --audience libraries.cgr.dev 2>/dev/null)
 curl -s -u "user:$TOKEN" \
   "https://libraries.cgr.dev/python-remediated/integrity/werkzeug/3.0.2%2Bcgr.1/werkzeug-3.0.2%2Bcgr.1-py3-none-any.whl/provenance" \
-  | python3 -c 'import sys,json,base64; e=json.load(sys.stdin)["attestation_bundles"][0]["attestations"][0]["envelope"]; s=json.loads(base64.b64decode(e.get("statement") or e.get("payload"))); print("buildType:", s["predicate"]["buildDefinition"]["buildType"]); print("builder  :", s["predicate"]["runDetails"]["builder"]["id"]); print("subject  :", s["subject"][0]["name"])'
+  | jq -r '.attestation_bundles[0].attestations[0].envelope | (.payload // .statement) | @base64d | fromjson | "buildType: \(.predicate.buildDefinition.buildType)\nbuilder  : \(.predicate.runDetails.builder.id)\nsubject  : \(.subject[0].name)"'
 # buildType: .../ecosystems-wheel-rebuilder/PythonBuild@v1
 # builder  : .../ecosystems-wheel-rebuilder/workflows/python-build-versions.yaml@<sha>
 # subject  : werkzeug-3.0.2+cgr.1-py3-none-any.whl
@@ -262,8 +263,13 @@ cosign tree cgr.dev/chainguard/python:latest-dev 2>/dev/null  # Chainguard -> At
    that outranks plain `3.0.2`). **Java names the exact coordinate** `1.4.200-0.cgr.3`.
 4. **The token is a build secret** (`--secret id=cgr_token,env=CGR_TOKEN`, mounted `mode=0444`
    so the non-root Chainguard user can read it), so it never lands in an image layer.
-5. **`grype.yaml` is required** (`using-cpes: false`) — otherwise grype re-reports the CVE
-   Chainguard already fixed and the library act looks like it did nothing.
+5. **`grype.yaml` (`using-cpes: false`) is an optional safeguard** — it stops grype re-reporting
+   a remediated CVE via fuzzy CPE matching. With the current grype + DB it's a **no-op** (the
+   `+cgr`/`-0.cgr` builds are recognized as fixed with or without it); it's kept as insurance.
+
+> **CVE totals drift** — grype's DB updates daily, so exact counts change over time. The story
+> is constant: **criticals cleared** and the **named CVE removed** (werkzeug `CVE-2024-34069`,
+> the H2 console RCEs) at the library act. Lead with those, not the raw total.
 
 > Two Chainguard indexes, no public one: `.../python-remediated` (`.../java-remediated`) serves
 > the CVE-backported builds; `.../python` (`.../java`) serves everything else — Chainguard's own

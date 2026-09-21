@@ -3,7 +3,9 @@
 Your single sheet for delivering it. Each step has the **command**, the **say this**, and the
 **look for**. Run Part 0 off-screen; do Parts 1–5 live. Ports: Python `8080`, Java `8081`.
 
-> Numbers drift a little with grype's DB — quote ranges ("~2,200 → ~10 → 9"), not exact totals.
+> CVE totals drift with grype's DB (updates daily). Quote **ballpark + the named CVE**
+> ("thousands → a dozen → **0 critical**, and the werkzeug/h2 CVE gone"), not exact totals.
+> Re-scan the day before so your talk track matches the screen.
 
 ---
 
@@ -50,15 +52,15 @@ curl localhost:8080          # served by werkzeug 3.0.2
 docker rm -f c
 grype py:baseline --config grype.yaml
 ```
-**Say:** *"It runs — but ~2,200 CVEs, 122 critical. This is where most teams start."*
+**Say:** *"It runs — but thousands of CVEs, ~120 critical. This is where most teams start."*
 
 **Act 2 — swap the base image (🟠).**
 ```bash
 diff python/Dockerfile.1-baseline python/Dockerfile.2-image   # one FROM line
 grype py:image --config grype.yaml
 ```
-**Say:** *"One line — the base image. 2,200 down to ten, zero critical. But that 1 high is
-`werkzeug` — it's in the **library**, not the OS. Hardening the image didn't touch it."*
+**Say:** *"One line — the base image. Thousands down to a dozen, zero critical. But `werkzeug`
+is still in there (`CVE-2024-34069`) — it's in the **library**, not the OS. Hardening the image didn't touch it."*
 
 **Act 3 — Chainguard Libraries (🟢).**
 ```bash
@@ -90,7 +92,7 @@ Log4Shell."*
 diff java/Dockerfile.1-baseline java/Dockerfile.2-image   # one runtime FROM line
 grype jv:image --config grype.yaml
 ```
-**Say:** *"269 down to ~5 — but the two criticals **persist**. They're in H2, not the OS. Watch."*
+**Say:** *"A few hundred down to a dozen — but the two criticals **persist**. They're in H2, not the OS. Watch."*
 
 **Act 3 — Chainguard Libraries.**
 ```bash
@@ -101,7 +103,7 @@ grype jv:library --config grype.yaml
 ```
 **Say:** *"H2 is now `1.4.200-0.cgr.3`, both criticals gone, app unchanged. For a team stuck on
 H2 1.4.200 because 2.x is a breaking change — this fixes it today."*
-**Look for:** UI shows `h2-1.4.200-0.cgr.3.jar`; grype `~2 / 0 / 1`.
+**Look for:** UI shows `h2-1.4.200-0.cgr.3.jar`; grype shows **0 critical**.
 > The `h2 driver reports: 1.4.200` line is H2's internal code line (unchanged by remediation) —
 > the **jar name** is the remediated coordinate. Mention it if asked.
 
@@ -129,7 +131,7 @@ image? No signature to verify at all."*
 ```bash
 curl -s -u "user:$CGR_TOKEN" \
   "https://libraries.cgr.dev/python-remediated/integrity/werkzeug/3.0.2%2Bcgr.1/werkzeug-3.0.2%2Bcgr.1-py3-none-any.whl/provenance" \
-  | python3 -c 'import sys,json,base64; e=json.load(sys.stdin)["attestation_bundles"][0]["attestations"][0]["envelope"]; s=json.loads(base64.b64decode(e.get("statement") or e.get("payload"))); print("buildType:", s["predicate"]["buildDefinition"]["buildType"]); print("builder  :", s["predicate"]["runDetails"]["builder"]["id"]); print("subject  :", s["subject"][0]["name"])'
+  | jq -r '.attestation_bundles[0].attestations[0].envelope | (.payload // .statement) | @base64d | fromjson | "buildType: \(.predicate.buildDefinition.buildType)\nbuilder  : \(.predicate.runDetails.builder.id)\nsubject  : \(.subject[0].name)"'
 ```
 **Say:** *"The remediated library itself carries signed SLSA provenance — you can see exactly how
 and by whom it was built, traced to source. That's how you'd catch a SolarWinds-style tampered
@@ -175,11 +177,14 @@ docker image rm -f py:baseline py:image py:library jv:baseline jv:image jv:libra
 
 ---
 
-## Validated end-state (reference)
+## Reference funnel (ballpark — totals drift daily; **criticals** are the constant)
 | | baseline | image | library |
 |---|---|---|---|
-| **Python** (werkzeug) | ~2200 / 122 / ~499 | ~10 / 0 / 1 | 9 / 0 / **0**  ·  `3.0.2+cgr.1` |
-| **Java** (h2) | ~269 / 2 / 6 | ~5 / **2** / 2 | ~2 / **0** / 1  ·  `1.4.200-0.cgr.3` |
+| **Python** (werkzeug) | thousands · **~120 crit** | a dozen · **0 crit** (werkzeug RCE still present) | a dozen · **0 crit** · werkzeug `3.0.2+cgr.1`, `CVE-2024-34069` **gone** |
+| **Java** (h2) | few hundred · **2 crit** | a dozen · **2 crit** (h2 criticals persist) | a dozen · **0 crit** · h2 `1.4.200-0.cgr.3`, console RCEs **gone** |
+
+The **criticals column** and the **named-CVE removal** are the story — the raw totals move with
+grype's DB and include unrelated newer advisories.
 
 Provenance/SBOM: Chainguard image `cosign verify` → **VERIFIED**; public → **no signatures**;
 library provenance → SLSA v1 build record; SBOM query → exact package versions on demand.
@@ -188,4 +193,6 @@ library provenance → SLSA v1 build record; SBOM query → exact package versio
 - **Curl returns a big HTML dashboard** → the main project is on :8080. `( cd ~/rv-personal/partner-workshop && make down )`, or use `-p 8090:8080`.
 - **401 / token errors** → `export CGR_TOKEN=$(chainctl auth token --audience libraries.cgr.dev 2>/dev/null)` (tokens last ~1h).
 - **Library build resolves nothing / fails** → confirm the org's Libraries entitlement **and upstream proxy policy** are enabled.
-- **Act 3 numbers don't drop** → make sure every scan passes `--config grype.yaml`.
+- **A *remediated* CVE reappears** (e.g. werkzeug `CVE-2024-34069` shows on the library image) →
+  pass `--config grype.yaml` (the CPE-matching safeguard). Note: raw *totals* not dropping to
+  near-zero is normal — that's newer, unrelated advisories (DB drift), not a failure.

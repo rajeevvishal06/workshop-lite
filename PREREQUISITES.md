@@ -25,21 +25,52 @@ time. You'll confirm it works in step 4.
 
 ## 2. Install the tools
 
-| Tool | Why | Install |
-|------|-----|---------|
-| **Docker** (with BuildKit — default) | build & run the app | https://docs.docker.com/get-docker/ |
-| **grype** ≥ 0.100.0 | scan images for CVEs | `brew install grype` · https://github.com/anchore/grype |
-| **chainctl** | Chainguard login + token | https://edu.chainguard.dev/chainguard/chainctl/ |
-| **cosign** | verify image signatures/provenance | `brew install cosign` |
-| **syft** | inspect the SBOM | `brew install syft` |
-| **jq**, **python3** | parse command output (python3 is usually preinstalled) | `brew install jq` |
+> **All workshop commands are written for a Linux/macOS shell (bash/zsh)** — they use
+> `curl`, `export`, `$(...)`, `grep`, etc. **On Windows, do NOT use PowerShell/CMD** — install
+> **WSL2 (Ubuntu)** and run everything inside the Ubuntu terminal, where every command works
+> as-is.
 
-macOS (Homebrew), one line for most of it:
+| Tool | Why |
+|------|-----|
+| **Docker** (BuildKit is on by default) | build & run the app |
+| **grype** ≥ 0.100.0 | scan images for CVEs |
+| **chainctl** | Chainguard login + pull token |
+| **cosign** | verify image signatures / provenance |
+| **syft** | inspect the SBOM |
+| **jq** + **python3** | parse command output (python3 ships with macOS/Ubuntu) |
+
+Pick your OS:
+
+**macOS** (Homebrew):
 ```bash
-brew install grype cosign syft jq      # + Docker Desktop + chainctl from the links above
+brew install grype cosign syft jq
+# Docker Desktop:  https://docs.docker.com/desktop/install/mac-install/
+# chainctl:        https://edu.chainguard.dev/chainguard/chainctl/how-to-install-chainctl/
 ```
-**Windows:** use **WSL2** with Docker Desktop and run everything inside the Linux shell.
-**Linux:** Docker Engine + the tools above from each project's releases.
+
+**Windows** — use WSL2 (this is the smooth path; the commands are all Linux):
+```powershell
+# 1) In PowerShell (as admin), install WSL2 + Ubuntu, then reboot:
+wsl --install -d Ubuntu
+# 2) Install Docker Desktop for Windows and turn ON:
+#    Settings -> Resources -> WSL Integration -> enable your Ubuntu distro
+#    (docs: https://docs.docker.com/desktop/wsl/)
+# 3) Open the "Ubuntu" terminal and do EVERYTHING there — including the Linux installs below.
+```
+
+**Linux, or inside WSL2 Ubuntu:**
+```bash
+sudo apt-get update && sudo apt-get install -y jq curl unzip
+# grype + syft (Anchore installers):
+curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin
+curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh  | sudo sh -s -- -b /usr/local/bin
+# cosign:
+curl -sSfLo /tmp/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 && sudo install /tmp/cosign /usr/local/bin/cosign
+# chainctl:
+curl -sSfLo /tmp/chainctl "https://dl.enforce.dev/chainctl/latest/chainctl_linux_amd64" && sudo install /tmp/chainctl /usr/local/bin/chainctl
+# docker: use Docker Desktop's WSL integration (Windows), or install Docker Engine (native Linux).
+# (For arm64 machines, swap the amd64 URLs for arm64 — see each project's releases page.)
+```
 
 **Give Docker room:** Docker Desktop → Settings → Resources → allow at least **~6 GB memory**
 and **~20 GB disk** (we pull base images for both a Python and a Java track).
