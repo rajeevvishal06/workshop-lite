@@ -48,11 +48,17 @@ and **~20 GB disk** (we pull base images for both a Python and a Java track).
 
 ## 3. Get the workshop code
 
+**Simplest — from the zip your organiser sent** (no GitHub account needed):
 ```bash
-git clone <REPO_URL>          # ← the organiser will share the exact URL (or a zip)
-cd workshop-lite
+unzip workshop-lite.zip && cd workshop-lite
 ```
-> Organiser note: fill in `<REPO_URL>` before sending, or attach the folder as a zip.
+
+**Or, if the organiser added you as a collaborator on the GitHub repo:**
+```bash
+git clone https://github.com/rajeevvishal06/workshop-lite.git && cd workshop-lite
+```
+> Cloning a *private* repo requires you to be signed in to GitHub (a browser prompt, the `gh`
+> CLI, or an SSH key). If that's unfamiliar, just use the zip — it's identical content.
 
 ---
 
