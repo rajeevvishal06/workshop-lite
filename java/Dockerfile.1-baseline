@@ -1,0 +1,17 @@
+# ACT 1 — BASELINE: upstream runtime image + H2 from Maven Central.
+# Multi-stage: build the jar with Maven, then run it on a JRE.
+#
+# Diff this file against Dockerfile.2-image: the ONLY difference is the runtime
+# FROM line (the second FROM). The build stage is just tooling and is discarded.
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY app/pom.xml .
+COPY app/src ./src
+RUN mvn -q -B -DskipTests package
+
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY --from=build /app/target/classes ./classes
+COPY --from=build /app/target/libs ./libs
+EXPOSE 8080
+ENTRYPOINT ["java", "-cp", "classes:libs/*", "demo.Demo"]

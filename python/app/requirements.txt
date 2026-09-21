@@ -1,0 +1,4 @@
+# Pinned, and it NEVER changes across the three acts. werkzeug 3.0.2 has a
+# Chainguard remediated build published as 3.0.2+cgr.1 — pip picks it up
+# automatically from the Chainguard index without editing this file.
+werkzeug==3.0.2

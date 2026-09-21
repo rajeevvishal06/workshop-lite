@@ -1,0 +1,29 @@
+# ACT 3 — Chainguard base image + library from Chainguard's REMEDIATED index.
+# Identical to Dockerfile.2-image except the pip step points at Chainguard.
+#
+# requirements.txt STILL says werkzeug==3.0.2 — pip automatically resolves the
+# remediated build 3.0.2+cgr.1 (a higher-precedence local version) from the index.
+# No code change, no manifest change. THAT is the "drop-in" point.
+#
+# Everything is pulled through Chainguard — NEVER public PyPI directly:
+#   index-url        -> python-remediated  (CVE-backported builds, e.g. werkzeug 3.0.2+cgr.1)
+#   extra-index-url  -> python             (Chainguard-built-from-source + protected upstream
+#                                           proxy: anything not built by Chainguard is served
+#                                           through here with malware scanning + cooldown)
+# So no dependency ever comes straight from pypi.org — proxied packages still get scanned.
+#
+# The pull token is passed as a build SECRET, so it never lands in an image layer
+# (check with `docker history` — it isn't there). mode=0444 lets the non-root user read it.
+FROM cgr.dev/chainguard/python:latest-dev
+
+WORKDIR /app
+COPY app/requirements.txt .
+RUN --mount=type=secret,id=cgr_token,mode=0444 \
+    T="$(cat /run/secrets/cgr_token)" && \
+    PIP_INDEX_URL="https://user:${T}@libraries.cgr.dev/python-remediated/simple/" \
+    PIP_EXTRA_INDEX_URL="https://user:${T}@libraries.cgr.dev/python/simple/" \
+    pip install --no-cache-dir --user -r requirements.txt
+COPY app/ .
+
+EXPOSE 8080
+ENTRYPOINT ["python", "app.py"]

@@ -1,0 +1,10 @@
+# Required when scanning Chainguard remediated libraries.
+# Disabling CPE matching lets grype honour the fix in the "+cgr.N" / "-0.cgr.N"
+# build; without it, grype fuzzy-matches by version and re-reports the CVE
+# Chainguard already fixed — so the library act would appear to do nothing.
+# Ref: https://edu.chainguard.dev/chainguard/libraries/scanners/
+match:
+  python:
+    using-cpes: false
+  java:
+    using-cpes: false

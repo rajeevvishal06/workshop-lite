@@ -1,0 +1,17 @@
+# ACT 2 — Chainguard runtime image + H2 STILL from Maven Central.
+# Identical to Dockerfile.1-baseline except the runtime FROM line below.
+#
+# The Chainguard JRE is minimal and non-root, so base-image CVEs drop — but H2 is
+# still the vulnerable 1.4.200 from Maven Central. Image hardening doesn't touch it.
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY app/pom.xml .
+COPY app/src ./src
+RUN mvn -q -B -DskipTests package
+
+FROM cgr.dev/chainguard/jre:latest
+WORKDIR /app
+COPY --from=build /app/target/classes ./classes
+COPY --from=build /app/target/libs ./libs
+EXPOSE 8080
+ENTRYPOINT ["java", "-cp", "classes:libs/*", "demo.Demo"]

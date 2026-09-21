@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>demo</groupId>
+  <artifactId>h2demo</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- The hero library. Overridden to 1.4.200-0.cgr.3 in the library act to pull
+         Chainguard's remediated build. This is the ONE line that changes for Java. -->
+    <h2.version>1.4.200</h2.version>
+  </properties>
+
+  <!-- Clean pom: NO Chainguard repository here. The remediated repo + credentials
+       are supplied only in the library act, via a settings.xml passed as a build
+       secret (see Dockerfile.3-library) — so this file is the same in every act. -->
+  <dependencies>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>${h2.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Copy the H2 jar to target/libs as a SEPARATE file (not shaded into a fat
+           jar). This is how real deployments ship it, and it lets scanners like
+           grype catalogue h2 by its exact version — including the "-0.cgr.3"
+           remediated coordinate. The app runs via `java -cp classes:libs/*`. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.6.1</version>
+        <executions>
+          <execution>
+            <id>copy-deps</id>
+            <phase>package</phase>
+            <goals><goal>copy-dependencies</goal></goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/libs</outputDirectory>
+              <includeScope>runtime</includeScope>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

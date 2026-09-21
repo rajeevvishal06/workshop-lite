@@ -1,0 +1,15 @@
+# ACT 2 — Chainguard base image + library STILL from PyPI.
+# Identical to Dockerfile.1-baseline except the FROM line below.
+#
+# The Chainguard image is minimal and runs as a non-root user, so the vast
+# majority of base-image (OS) CVEs disappear. But werkzeug is still the vulnerable
+# 3.0.2 pulled from PyPI — image hardening does not touch your dependencies.
+FROM cgr.dev/chainguard/python:latest-dev
+
+WORKDIR /app
+COPY app/requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+COPY app/ .
+
+EXPOSE 8080
+ENTRYPOINT ["python", "app.py"]

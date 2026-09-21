@@ -1,0 +1,30 @@
+# ACT 3 — Chainguard runtime image + H2 from Chainguard's REMEDIATED repo.
+# Identical to Dockerfile.2-image except the Maven step: it pins the remediated
+# coordinate (-Dh2.version=1.4.200-0.cgr.3) and supplies a settings.xml built from
+# the pull-token secret, which defines the Chainguard repo + credentials.
+#
+# Unlike Python, Java resolves EXACT coordinates, so the remediated build is named
+# explicitly (-Dh2.version=1.4.200-0.cgr.3). Everything is routed through Chainguard,
+# NEVER public Maven Central:
+#   - a <mirror> of "*,!cgr-remediated" sends ALL artifacts (deps AND plugins) to
+#     libraries.cgr.dev/java/ — Chainguard-built-from-source, with the protected
+#     upstream proxy (malware scanning + cooldown) for anything not yet built.
+#   - the cgr-remediated repo is EXCLUDED from the mirror, so h2 1.4.200-0.cgr.3
+#     resolves from libraries.cgr.dev/java-remediated/.
+# The token comes in as a build SECRET and is written to a throwaway settings.xml in
+# the (discarded) build stage — it never reaches the final image.
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY app/pom.xml .
+COPY app/src ./src
+RUN --mount=type=secret,id=cgr_token,mode=0444 \
+    T="$(cat /run/secrets/cgr_token)" && \
+    printf '<settings><servers><server><id>cgr-proxy</id><username>user</username><password>%s</password></server><server><id>cgr-remediated</id><username>user</username><password>%s</password></server></servers><mirrors><mirror><id>cgr-proxy</id><mirrorOf>*,!cgr-remediated</mirrorOf><url>https://libraries.cgr.dev/java/</url></mirror></mirrors><profiles><profile><id>cgr</id><repositories><repository><id>cgr-remediated</id><url>https://libraries.cgr.dev/java-remediated/</url><releases><enabled>true</enabled></releases><snapshots><enabled>false</enabled></snapshots></repository></repositories></profile></profiles><activeProfiles><activeProfile>cgr</activeProfile></activeProfiles></settings>' "$T" "$T" > /tmp/s.xml && \
+    mvn -q -B -DskipTests -s /tmp/s.xml -Dh2.version=1.4.200-0.cgr.3 package
+
+FROM cgr.dev/chainguard/jre:latest
+WORKDIR /app
+COPY --from=build /app/target/classes ./classes
+COPY --from=build /app/target/libs ./libs
+EXPOSE 8080
+ENTRYPOINT ["java", "-cp", "classes:libs/*", "demo.Demo"]
