@@ -94,9 +94,9 @@ Run everything below from the `workshop-lite/` root.
 ### Act 1 — baseline (upstream image + PyPI)
 ```bash
 docker build -f python/Dockerfile.1-baseline -t py:baseline python
-docker run --rm -d -p 8080:8080 --name c py:baseline && sleep 2
+docker run --rm -d -p 8080:8080 --name pyc py:baseline && sleep 2
 curl localhost:8080                    # -> served by werkzeug 3.0.2
-docker rm -f c
+docker rm -f pyc
 grype py:baseline --config grype.yaml
 ```
 Expect **thousands of CVEs (~2,000+), ~120 critical** — almost all of it the base OS image.
@@ -114,9 +114,9 @@ vulnerable `werkzeug` (`CVE-2024-34069`, the debugger RCE) — image hardening d
 ```bash
 export CGR_TOKEN=$(chainctl auth token --audience libraries.cgr.dev 2>/dev/null)
 docker build -f python/Dockerfile.3-library --secret id=cgr_token,env=CGR_TOKEN -t py:library python
-docker run --rm -d -p 8080:8080 --name c py:library && sleep 2
+docker run --rm -d -p 8080:8080 --name pyc py:library && sleep 2
 curl localhost:8080                    # -> served by werkzeug 3.0.2+cgr.1
-docker rm -f c
+docker rm -f pyc
 grype py:library --config grype.yaml
 ```
 Expect **0 critical, and `CVE-2024-34069` gone** — the werkzeug debugger RCE is remediated,
@@ -181,7 +181,7 @@ different ports so they can run at the same time:
 
 | Track | Run it | Check it |
 |-------|--------|----------|
-| Python | `docker run --rm -d -p 8080:8080 --name c py:library && sleep 2` | `curl localhost:8080` · or open http://localhost:8080 |
+| Python | `docker run --rm -d -p 8080:8080 --name pyc py:library && sleep 2` | `curl localhost:8080` · or open http://localhost:8080 |
 | Java | `docker run --rm -d -p 8081:8080 --name jc jv:library && sleep 2` | `curl localhost:8081` · or open http://localhost:8081 |
 
 - Swap the tag (`py:baseline` / `py:image` / `py:library`, same for `jv:`) to check any act.
@@ -189,7 +189,7 @@ different ports so they can run at the same time:
   (`3.0.2` → `3.0.2+cgr.1`); Java shows the **h2 jar name** (`h2-1.4.200.jar` →
   `h2-1.4.200-0.cgr.3.jar`).
 - Follow logs: `docker logs -f c` (or `jc`). See what's running: `docker ps`.
-- Stop when done: `docker rm -f c jc`.
+- Stop when done: `docker rm -f pyc jc`.
 - **Curl returns a big HTML dashboard instead of plain text?** That's the *other* project on
   port 8080 — stop it (`cd ~/rv-personal/partner-workshop && make down`) or use a free port
   (e.g. `-p 8090:8080`, then curl 8090).
@@ -301,6 +301,6 @@ cosign tree cgr.dev/chainguard/python:latest-dev 2>/dev/null  # Chainguard -> At
 
 ## Cleanup
 ```bash
-docker rm -f c 2>/dev/null
+docker rm -f pyc 2>/dev/null
 docker image rm -f py:baseline py:image py:library jv:baseline jv:image jv:library 2>/dev/null
 ```

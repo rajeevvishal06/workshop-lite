@@ -47,9 +47,9 @@ Have open: a terminal + a browser tab on `localhost:8080`.
 
 **Act 1 — baseline (🔴).**
 ```bash
-docker run --rm -d -p 8080:8080 --name c py:baseline && sleep 2
+docker run --rm -d -p 8080:8080 --name pyc py:baseline && sleep 2
 curl localhost:8080          # served by werkzeug 3.0.2
-docker rm -f c
+docker rm -f pyc
 grype py:baseline --config grype.yaml
 ```
 **Say:** *"It runs — but thousands of CVEs, ~120 critical. This is where most teams start."*
@@ -64,9 +64,9 @@ is still in there (`CVE-2024-34069`) — it's in the **library**, not the OS. Ha
 
 **Act 3 — Chainguard Libraries (🟢).**
 ```bash
-docker run --rm -d -p 8080:8080 --name c py:library && sleep 2
+docker run --rm -d -p 8080:8080 --name pyc py:library && sleep 2
 curl localhost:8080          # served by werkzeug 3.0.2+cgr.1
-docker rm -f c
+docker rm -f pyc
 grype py:library --config grype.yaml
 ```
 **Say:** *"Same app, same pinned `werkzeug==3.0.2` — now `3.0.2+cgr.1`, CVE gone. No code
@@ -171,7 +171,7 @@ libraries, and a supply chain you can prove — your developers change nothing."
 
 ## Part 6 — Reset / cleanup
 ```bash
-docker rm -f c jc 2>/dev/null
+docker rm -f pyc jc 2>/dev/null
 docker image rm -f py:baseline py:image py:library jv:baseline jv:image jv:library 2>/dev/null
 ```
 
