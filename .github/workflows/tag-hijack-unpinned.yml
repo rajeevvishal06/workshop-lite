@@ -1,0 +1,28 @@
+# ❌ THE VULNERABLE PATTERN — third-party actions referenced by MUTABLE tags.
+# Every `@v4`/`@main` is a promise the upstream (or an attacker who compromises it)
+# can rewrite at any time to point at different code — which then runs in YOUR job
+# with YOUR secrets. This is exactly how tj-actions/changed-files was weaponized.
+#
+# Promote to .github/workflows/ to run it; the local 'greeting' step shows what any
+# dependency can access. Then read tag-hijack/README.md for the attack timeline.
+name: CI (UNPINNED — vulnerable to tag hijack)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # mutable tag: whoever controls this tag controls what runs here
+      - uses: actions/checkout@v4
+
+      # a "third-party dependency" referenced mutably — stand-in for tj-actions et al.
+      - uses: ./guardener/actions/value/tag-hijack/poisoned-action
+        env:
+          DEMO_SECRET: ${{ secrets.DEMO_SECRET }}   # a real pipeline hands secrets to deps
+
+      - run: echo "build continues..."
