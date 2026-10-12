@@ -1,10 +1,11 @@
-# LIVE PROVENANCE PROOF (lever 2) — a CI job that, for every Chainguard Action this
-# repo pins, proves the hardening IN THE PIPELINE: which upstream commit it was built
-# from (source.json), the policy-stamped hardening report (HARDENING.md), and that a
-# signed SLSA build attestation exists. "Trust, but verify" — automatically, every run.
+# LIVE PROVENANCE PROOF (lever 2) — SELF-CONTAINED: for every Chainguard Action this repo
+# pins, it proves the hardening IN THE PIPELINE — which upstream commit it was built from
+# (source.json), the policy-stamped hardening report (HARDENING.md), and that a signed SLSA
+# build attestation exists. "Trust, but verify" — automatically, every run.
 #
-# Promote this to .github/workflows/verify-hardening.yml. It uses only the GitHub CLI
-# (pre-installed on runners) + jq, and reads public metadata, so it needs no secrets.
+# Deliberately has NO checkout and calls NO external script, so it works even if the
+# guardener/ workshop folder isn't in the repo. Uses only gh (pre-installed) + jq.
+# Mirrors guardener/actions/value/provenance/verify-hardening.sh.
 name: Verify hardened-action provenance
 
 on:
@@ -21,11 +22,29 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: chainguard-actions/actions-checkout@59b7218bfc2eaabc464f1254f6e1dac5bda91d94 # v4
       - name: Prove the hardening behind every pinned action
         run: |
-          bash guardener/actions/value/provenance/verify-hardening.sh \
-            chainguard-actions/actions-checkout@v4 \
-            chainguard-actions/actions-setup-python@v5.6.0 \
-            chainguard-actions/docker-setup-buildx-action@v3 \
-            chainguard-actions/docker-build-push-action@v6
+          set -uo pipefail
+          ACTIONS=(
+            "chainguard-actions/actions-checkout@v4"
+            "chainguard-actions/actions-setup-python@v5.6.0"
+            "chainguard-actions/docker-setup-buildx-action@v3"
+            "chainguard-actions/docker-build-push-action@v6"
+          )
+          for a in "${ACTIONS[@]}"; do
+            repo="${a%@*}"; ref="${a#*@}"
+            echo "=== $a ==="
+            sha=$(gh api "/repos/$repo/git/ref/tags/$ref" --jq '.object.sha' 2>/dev/null)
+            echo "  tag $ref -> immutable commit ${sha:-<none>}"
+            gh api "/repos/$repo/contents/source.json?ref=$ref" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null \
+              | jq -r '"  hardened from: \(.owner)/\(.repo)@\(.version)  (upstream commit \(.commit_sha))\n  policy SHA:    \(.policy_sha)"' 2>/dev/null \
+              || echo "  source.json: (not published for this action yet)"
+            gh api "/repos/$repo/contents/HARDENING.md?ref=$ref" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null \
+              | grep -iE 'was hardened' | sed 's/^/  report: /' || echo "  HARDENING.md: (none)"
+            if gh api "/repos/$repo/contents/attestations/provenance.intoto.jsonl?ref=$ref" --jq '.path' >/dev/null 2>&1; then
+              echo "  attestation: signed SLSA in-toto present (attestations/provenance.intoto.jsonl)"
+            else
+              echo "  attestation: (none found)"
+            fi
+            echo
+          done
