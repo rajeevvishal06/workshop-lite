@@ -1,0 +1,35 @@
+# Demo CI for the workshop's Guardener "Hardened Actions" use case.
+# It is pinned to MUTABLE upstream tags (@v4, @v5, ...) ON PURPOSE — that's the BEFORE.
+# Run `chainctl guardener github migrate create` (or let the Guardener App open its
+# scheduled PR) and watch every `uses:` become a SHA-pinned chainguard-actions/* equivalent.
+#
+# Trigger is workflow_dispatch only, so adding/updating this file never spawns a (red)
+# CI run — the point is the `uses:` lines Guardener hardens, not the build itself.
+name: CI (Guardener demo)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install & smoke-test
+        run: |
+          pip install -r python/app/requirements.txt
+          python -c "import werkzeug; print(werkzeug.__version__)"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: python
+          file: python/Dockerfile.2-image
+          push: false
+          tags: py:ci
