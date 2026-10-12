@@ -29,13 +29,13 @@ Have a terminal + a browser tab ready. (Token lasts ~1h — re-run the last line
 
 ```bash
 docker build -q -f python/Dockerfile.1-baseline -t py:baseline python
-grype py:baseline --config grype.yaml
+grype py:baseline
 ```
 👀 **Thousands of CVEs, ~120 CRITICAL.** This is where most teams start.
 
 ```bash
 docker build -q -f python/Dockerfile.2-image -t py:image python
-grype py:image --config grype.yaml
+grype py:image
 diff python/Dockerfile.1-baseline python/Dockerfile.2-image   # the ONLY change is the FROM line
 ```
 👀 **Collapses to ~a dozen, 0 CRITICAL.** One `werkzeug` CVE remains (that's Part 2).
@@ -56,7 +56,7 @@ OS-layer CVE problem, and the app runs exactly as before.
 
 ```bash
 docker build -q -f python/Dockerfile.3-library --secret id=cgr_token,env=CGR_TOKEN -t py:library python
-grype py:library --config grype.yaml
+grype py:library
 ```
 👀 **0 CRITICAL, and `CVE-2024-34069` (the werkzeug RCE) is GONE.**
 
@@ -65,6 +65,8 @@ docker run --rm -d -p 8080:8080 --name pyc py:library && sleep 2
 curl localhost:8080          # -> served by werkzeug 3.0.2+cgr.1   (the remediated build)
 docker rm -f pyc
 ```
+👀 **The app still works** — now on the remediated library.
+
 💬 **The point:** `requirements.txt` still says `werkzeug==3.0.2` — pip pulled Chainguard's
 remediated `3.0.2+cgr.1` automatically. **Zero code or version changes**, library CVE fixed.
 
@@ -121,9 +123,9 @@ secrets across ~23,000 repos. **SHA-pinned + hardened actions are immune, and pr
 
 ## The whole story on one slide
 
-| Step | Command spine | CVEs / outcome |
-|------|---------------|----------------|
-| 1 — Container | `Dockerfile.2-image` | thousands · ~120 crit → **~dozen · 0 crit** |
+| Step | Command spine | Outcome |
+|------|---------------|---------|
+| 1 — Container | `Dockerfile.2-image` | thousands · ~120 crit → **~dozen · 0 crit**, app still runs |
 | 2 — Library | `Dockerfile.3-library` | werkzeug `CVE-2024-34069` **gone**, no code change |
 | 3 — Guardener image | `chainctl agent dockerfile build` | Part 1 **automated + build-verified** at fleet scale |
 | 4 — Guardener actions | `chainctl guardener github migrate create` | CI actions **SHA-pinned + hardened**, provable, hijack-immune |
