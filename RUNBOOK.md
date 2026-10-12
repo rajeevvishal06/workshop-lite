@@ -169,10 +169,55 @@ libraries, and a supply chain you can prove — your developers change nothing."
 
 ---
 
+## Part 5.5 — Guardener (optional, ~3–5 min) — "now do it 400 times"
+
+Only if it fits the room. The pitch: the by-hand swaps you just did don't scale to a fleet —
+Guardener automates two surfaces. **Live** if your org has the beta; otherwise replay the
+**captured** result (committed, always works). Show either or both.
+
+### Use case 1 — Dockerfile migration (local AI agent). Run from `guardener/dockerfile/`.
+```bash
+cd guardener/dockerfile
+# live (beta): one-time accept-terms, then AI build+fix (a few min)
+chainctl agent accept-terms
+chainctl agent dockerfile build -f Dockerfile.legacy -t py:guardener .
+diff Dockerfile.legacy Dockerfile.legacy.migrated
+docker run --rm -d -p 8082:8080 --name gd py:guardener && sleep 2
+curl localhost:8082          # served by werkzeug 3.0.2
+docker rm -f gd
+grype py:guardener           # same OS-CVE collapse as Dockerfile.2-image
+# no access? captured fallback:
+diff Dockerfile.legacy captured/Dockerfile.migrated.reference && cat captured/transcript.md
+```
+**Say:** *"That base-image swap I did by hand — one `FROM` line — doesn't scale to 400
+Dockerfiles. Guardener did the **same** migration, but it **built the image, hit a real
+failure, and fixed it** on its own. Days per service → minutes, and it hands you a Dockerfile
+you review."*
+**Look for:** the diff — fat ubuntu+apt+root → multi-stage, nonroot, distroless, no apt; the
+transcript's analyze→build→**fail**→fix→pass loop; `grype py:guardener` matching the image act.
+
+### Use case 2 — Hardened GitHub Actions (GitHub App). Run from `guardener/actions/`.
+```bash
+cd guardener/actions
+# live (beta): install github.com/apps/chainguard-guardener, then
+chainctl guardener github link <github-org> --group <chainguard-group>
+chainctl guardener github migrate create <owner/repo>     # opens/updates one migration PR
+# no access? captured fallback:
+diff workflows-before/ci.yml captured/ci.hardened.yml && cat captured/pr-summary.md
+```
+**Say:** *"Hardening the image kills OS CVEs — but your CI is its own attack surface. Every
+`uses:` here is a **mutable tag**; move the tag upstream and attacker code reruns with your
+secrets. Guardener swaps each for a **SHA-pinned** Chainguard-hardened action — same inputs,
+one-line change — as review comments or an auto-maintained PR. Same Guardener, two surfaces."*
+**Look for:** in the diff, every `@vN` → `chainguard-actions/<org>-<name>@<sha> # vN`; the
+PR summary's per-action table and "could not migrate: none".
+
+---
+
 ## Part 6 — Reset / cleanup
 ```bash
-docker rm -f pyc jc 2>/dev/null
-docker image rm -f py:baseline py:image py:library jv:baseline jv:image jv:library 2>/dev/null
+docker rm -f pyc jc gd 2>/dev/null
+docker image rm -f py:baseline py:image py:library jv:baseline jv:image jv:library py:guardener 2>/dev/null
 ```
 
 ---

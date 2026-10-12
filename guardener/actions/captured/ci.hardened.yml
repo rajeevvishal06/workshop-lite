@@ -1,0 +1,35 @@
+# The AFTER — the ACTUAL result of Guardener's migration PR on this repo (not illustrative).
+# SHAs are the real pins from the migration; see captured/pr-summary.md for the PR body.
+#
+# Note: 3 of 4 actions migrated. `actions/setup-python@v5` was LEFT UNCHANGED on purpose —
+# the hardened repo has no bare `v5` tag, so Guardener refused to loosen/guess the pin
+# (reason: MISSING_VERSION). The fix is to pin a published version, e.g. v5.6.0 — see
+# ../value/workflows/hardened-ci.yml. That conservative behavior is a feature, not a gap.
+name: CI (Guardener demo)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: chainguard-actions/actions-checkout@59b7218bfc2eaabc464f1254f6e1dac5bda91d94 # v4
+
+      - uses: actions/setup-python@v5          # NOT migrated — no version-equivalent hardened tag (MISSING_VERSION)
+        with:
+          python-version: "3.12"
+
+      - name: Install & smoke-test
+        run: |
+          pip install -r python/app/requirements.txt
+          python -c "import werkzeug; print(werkzeug.__version__)"
+
+      - uses: chainguard-actions/docker-setup-buildx-action@6d415f71ab3ef9a7738ade671313ffac4ba9f06c # v3
+
+      - uses: chainguard-actions/docker-build-push-action@90e59df237ac4b0e77911df31d377167fc308506 # v6
+        with:
+          context: python
+          file: python/Dockerfile.2-image
+          push: false
+          tags: py:ci

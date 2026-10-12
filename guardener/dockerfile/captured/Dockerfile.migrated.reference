@@ -1,0 +1,26 @@
+# Representative Guardener output for Dockerfile.legacy.
+# Guardener produces this by iteratively BUILDING and FIXING until the image builds
+# and runs — not by find-and-replace. Your exact output may differ run to run; this is
+# a recorded example so the module works without beta access.
+#
+# What changed vs the legacy file:
+#   ubuntu:22.04 + apt python   ->  cgr.dev/chainguard/python (minimal, nonroot, no apt)
+#   root                        ->  nonroot (65532) by default
+#   build toolchain in runtime  ->  multi-stage: deps built on -dev, run on distroless
+#   CMD python3                 ->  ENTRYPOINT python  (Chainguard images provide `python`)
+#
+# Note this is the SAME shape as the Python track's Dockerfile.2-image (pip --user,
+# Chainguard base) — produced automatically instead of edited by hand.
+FROM cgr.dev/chainguard/python:latest-dev AS build
+WORKDIR /app
+COPY app/requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+FROM cgr.dev/chainguard/python:latest
+WORKDIR /app
+# the --user site-packages from the build stage; nonroot's home is /home/nonroot
+COPY --from=build /home/nonroot/.local /home/nonroot/.local
+ENV PATH=/home/nonroot/.local/bin:$PATH
+COPY app/ .
+EXPOSE 8080
+ENTRYPOINT ["python", "app.py"]

@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 target/
 .DS_Store
+# Guardener writes these live; the committed capture is in guardener/dockerfile/captured/
+guardener/dockerfile/Dockerfile.legacy.migrated*
+guardener/dockerfile/.chainguard/       # chainctl agent session artifacts (symlinks to tmp)

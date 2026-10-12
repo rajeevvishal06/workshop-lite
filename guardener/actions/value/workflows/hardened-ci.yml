@@ -1,0 +1,43 @@
+# GREEN DROP-IN (lever 3) — the SAME pipeline as workflows-before/ci.yml, but every
+# action is a Chainguard-hardened, SHA-PINNED equivalent. Same inputs/outputs, so it
+# just runs — proving adoption is a one-line-per-step change with zero behavior change.
+#
+# Promote this to .github/workflows/hardened-ci.yml to see it go green live.
+# SHAs below are REAL (resolved from the chainguard-actions catalog); keep them fresh
+# with Renovate/Dependabot. The trailing "# vN" keeps it human-readable.
+#
+# Note on setup-python: Guardener skipped actions/setup-python@v5 (MISSING_VERSION —
+# the hardened repo has no bare `v5` tag). The fix is to pin a published version like
+# v5.6.0, shown here. That's the conservative behavior working as intended.
+name: Hardened CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: chainguard-actions/actions-checkout@59b7218bfc2eaabc464f1254f6e1dac5bda91d94 # v4
+
+      - uses: chainguard-actions/actions-setup-python@ace3254bb5011efbd0650a7120a0441ebd1f9400 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Install & smoke-test (identical to the upstream pipeline)
+        run: |
+          pip install -r python/app/requirements.txt
+          python -c "import werkzeug; print('werkzeug', werkzeug.__version__)"
+
+      - uses: chainguard-actions/docker-setup-buildx-action@6d415f71ab3ef9a7738ade671313ffac4ba9f06c # v3
+
+      - uses: chainguard-actions/docker-build-push-action@90e59df237ac4b0e77911df31d377167fc308506 # v6
+        with:
+          context: python
+          file: python/Dockerfile.2-image
+          push: false
+          tags: py:ci

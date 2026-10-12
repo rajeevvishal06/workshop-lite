@@ -1,0 +1,28 @@
+# ✅ THE IMMUNE PATTERN — Chainguard-hardened actions, pinned to an immutable SHA.
+# A moved tag cannot touch you: your job runs the EXACT commit you pinned, and that
+# commit was rebuilt-from-source and policy-audited by Chainguard (see provenance/).
+# Two independent layers of defense against the tag-hijack class:
+#   1. SHA pin      -> the reference can't be rewritten out from under you
+#   2. hardening    -> even that exact commit was checked + attested (HARDENING.md)
+name: CI (PINNED + hardened — immune to tag hijack)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # immutable: this 40-char SHA can never be repointed; "# v4" is just a human label
+      - uses: chainguard-actions/actions-checkout@59b7218bfc2eaabc464f1254f6e1dac5bda91d94 # v4
+
+      # the same local demo dependency — in real life this would be a hardened,
+      # SHA-pinned chainguard-actions/* replacement for the third-party action.
+      - uses: ./guardener/actions/value/tag-hijack/poisoned-action
+        env:
+          DEMO_SECRET: ${{ secrets.DEMO_SECRET }}
+
+      - run: echo "build continues..."
