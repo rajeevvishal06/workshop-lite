@@ -1,0 +1,31 @@
+# LIVE PROVENANCE PROOF (lever 2) — a CI job that, for every Chainguard Action this
+# repo pins, proves the hardening IN THE PIPELINE: which upstream commit it was built
+# from (source.json), the policy-stamped hardening report (HARDENING.md), and that a
+# signed SLSA build attestation exists. "Trust, but verify" — automatically, every run.
+#
+# Promote this to .github/workflows/verify-hardening.yml. It uses only the GitHub CLI
+# (pre-installed on runners) + jq, and reads public metadata, so it needs no secrets.
+name: Verify hardened-action provenance
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"   # weekly, so drift in what you pin gets caught
+
+permissions:
+  contents: read
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: chainguard-actions/actions-checkout@59b7218bfc2eaabc464f1254f6e1dac5bda91d94 # v4
+      - name: Prove the hardening behind every pinned action
+        run: |
+          bash guardener/actions/value/provenance/verify-hardening.sh \
+            chainguard-actions/actions-checkout@v4 \
+            chainguard-actions/actions-setup-python@v5.6.0 \
+            chainguard-actions/docker-setup-buildx-action@v3 \
+            chainguard-actions/docker-build-push-action@v6
