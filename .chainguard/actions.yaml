@@ -1,0 +1,9 @@
+# Guardener Hardened Actions — enables the Actions feature on this repo.
+# Without this file, the Guardener App takes NO action even with repo access.
+#   enabled: inline recommendation comments on PRs that touch .github/workflows/
+#   migrate: Guardener also opens & maintains a single automated migration PR
+enabled: true
+
+migrate:
+  enabled: true
+  period: "168h"   # weekly; Go duration. Default 24h, min 1 day.
