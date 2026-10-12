@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: chainguard-actions/actions-checkout@59b7218bfc2eaabc464f1254f6e1dac5bda91d94 # v4
 
       - uses: actions/setup-python@v5
         with:
@@ -25,9 +25,9 @@ jobs:
           pip install -r python/app/requirements.txt
           python -c "import werkzeug; print(werkzeug.__version__)"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: chainguard-actions/docker-setup-buildx-action@6d415f71ab3ef9a7738ade671313ffac4ba9f06c # v3
 
-      - uses: docker/build-push-action@v6
+      - uses: chainguard-actions/docker-build-push-action@90e59df237ac4b0e77911df31d377167fc308506 # v6
         with:
           context: python
           file: python/Dockerfile.2-image
