@@ -1,0 +1,23 @@
+# The "BEFORE" — a deliberately crufty legacy Dockerfile, the kind every team has
+# a few hundred of. Fat Ubuntu base, root user, apt-installed Python, the full
+# build toolchain left in the final image. This is what Guardener migrates FOR you.
+#
+# The Python track (../../python) did this same base-image swap BY HAND — one FROM line.
+# Guardener is the answer to "we have 400 of these": the same migration, automated,
+# built-and-verified, at fleet scale. It does NOT edit this file — it reads it, then
+# writes a new Dockerfile.legacy.migrated next to it (see captured/ for a recorded one).
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+      python3 python3-pip python3-venv curl ca-certificates build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY app/requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+COPY app/ .
+EXPOSE 8080
+# runs as root, full toolchain left in the image, hundreds of MB of unused packages
+CMD ["python3", "app.py"]

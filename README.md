@@ -16,8 +16,11 @@ workshop-lite/
 ├── grype.yaml            # shared scanner config (optional safeguard — see below)
 ├── python/               # a ~15-line web app served by werkzeug (the hero library)
 │   ├── app/  ·  Dockerfile.1-baseline  ·  Dockerfile.2-image  ·  Dockerfile.3-library
-└── java/                 # a tiny program using H2 as a real database (the hero library)
-    └── app/  ·  Dockerfile.1-baseline  ·  Dockerfile.2-image  ·  Dockerfile.3-library
+├── java/                 # a tiny program using H2 as a real database (the hero library)
+│   └── app/  ·  Dockerfile.1-baseline  ·  Dockerfile.2-image  ·  Dockerfile.3-library
+└── guardener/            # optional: AI migration at fleet scale (runs live OR replays a capture)
+    ├── dockerfile/        #   use case 1 — migrate a legacy Dockerfile to Chainguard
+    └── actions/           #   use case 2 — harden GitHub Actions (SHA-pinned chainguard-actions)
 ```
 
 | Act | Base image | Library from | Result |
@@ -299,8 +302,47 @@ cosign tree cgr.dev/chainguard/python:latest-dev 2>/dev/null  # Chainguard -> At
 
 ---
 
+## Optional: Guardener — automate the migration at fleet scale
+
+The tracks above swap the base image **by hand** — one `FROM` line, easy for one service.
+**Guardener** is the answer to *"we have 400 of these"*: Chainguard's AI migration tool, in two
+use cases. Same no-magic spirit — plain commands, each with a **captured** result committed so
+it works even without access. Full walkthroughs in [`guardener/README.md`](guardener/README.md).
+
+**Use case 1 — Dockerfile migration** ([`guardener/dockerfile/`](guardener/dockerfile/)). An AI
+agent (local, via `chainctl`) reads a legacy Dockerfile, rewrites it to Chainguard, then
+**builds the image, watches it fail, and fixes it** until it runs.
+```bash
+cd guardener/dockerfile
+chainctl agent accept-terms                                   # one-time (needs guardener.admin)
+chainctl agent dockerfile build -f Dockerfile.legacy -t py:guardener .
+diff Dockerfile.legacy Dockerfile.legacy.migrated
+# no access? the committed capture tells the same story:
+diff Dockerfile.legacy captured/Dockerfile.migrated.reference && cat captured/transcript.md
+```
+The result is the same minimal, nonroot, distroless image as `python/Dockerfile.2-image` —
+`grype py:guardener` shows the identical OS-CVE collapse, produced **for** you.
+
+**Use case 2 — Hardened GitHub Actions** ([`guardener/actions/`](guardener/actions/)). A GitHub
+**App** swaps every `uses:` in your workflows for a **SHA-pinned** Chainguard-hardened
+equivalent — same inputs/outputs — killing tag-hijack supply-chain attacks the image scan never
+sees. Configured by a committed `.chainguard/actions.yaml`; runs as recommendation comments or
+an auto-maintained migration PR.
+```bash
+# live: install github.com/apps/chainguard-guardener, then
+chainctl guardener github link <github-org> --group <chainguard-group>
+chainctl guardener github migrate create <owner/repo>
+# no access? the committed capture tells the same story:
+cd guardener/actions && diff workflows-before/ci.yml captured/ci.hardened.yml && cat captured/pr-summary.md
+```
+
+> **Beta, entitlement-gated.** An NFR org doesn't automatically have Guardener — access is
+> granted per-org via the beta waitlist. Nothing in the tracks above depends on either module.
+
+---
+
 ## Cleanup
 ```bash
-docker rm -f pyc 2>/dev/null
-docker image rm -f py:baseline py:image py:library jv:baseline jv:image jv:library 2>/dev/null
+docker rm -f pyc jc gd 2>/dev/null
+docker image rm -f py:baseline py:image py:library jv:baseline jv:image jv:library py:guardener 2>/dev/null
 ```

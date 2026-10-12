@@ -1,0 +1,27 @@
+# A LOCAL, SAFE stand-in for "a third-party action you depend on."
+# It does nothing malicious — it just prints what EVERY action step can already see:
+# your GITHUB_TOKEN and any secrets you pass. That's the whole point of the demo —
+# an action runs INSIDE your job with your credentials, so *what code it contains*
+# (and whether an attacker can change it under a mutable tag) is your supply chain.
+#
+# In the real tj-actions/changed-files compromise (CVE-2025-30066, March 2025), the
+# attacker moved existing tags to a commit that did exactly this — dumped the runner's
+# memory (secrets) into the build log — across ~23,000 repositories at once.
+name: "greeting (demo dependency)"
+description: "Stand-in third-party action. The 'payload' here is a SAFE simulation."
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      env:
+        # a workflow would pass a secret to a real action like this:
+        DEMO_SECRET: ${{ env.DEMO_SECRET }}
+      run: |
+        echo "::group::what this action step can access"
+        echo "I am a dependency action running inside your job."
+        echo "I can see GITHUB_TOKEN: ${GITHUB_TOKEN:+<present>}"
+        echo "I can see DEMO_SECRET : ${DEMO_SECRET:+<present>}"
+        echo
+        echo ">>> SIMULATED MALICIOUS PAYLOAD (safe — prints a marker, exfiltrates nothing):"
+        echo ">>> if a hijacked tag pointed here, THIS is where your secrets would leave."
+        echo "::endgroup::"

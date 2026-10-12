@@ -1,0 +1,18 @@
+# Guardener Hardened Actions config. Committed to the repo root as .chainguard/actions.yaml;
+# it lives here under guardener/actions/ only so the workshop can show it alongside the
+# before/after. In a real repo this file sits at <repo>/.chainguard/actions.yaml.
+#
+# `enabled: true` alone  -> Guardener posts non-blocking RECOMMENDATION comments on any PR
+#                           that touches .github/workflows/ (one-click "apply suggestion").
+# the `migrate` block     -> Guardener also opens and keeps updated a single AUTOMATED
+#                           MIGRATION PR across all workflows, on the cadence you set.
+enabled: true
+
+migrate:
+  enabled: true
+  period: "168h"          # Go duration; 168h = weekly. Default 24h, clamped to >= 1 day.
+  ignore:                 # both lists are ILLUSTRATIVE — nothing here matches ci.yml,
+    files:                # so all four of its actions get migrated in captured/ci.hardened.yml
+      - "release.yml"     # glob patterns for workflow files to skip (not present in this demo)
+    actions:
+      - "my-org/internal-*"  # glob patterns for upstream actions to leave untouched

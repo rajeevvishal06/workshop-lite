@@ -121,7 +121,24 @@ Three ✓ and you're set. Any ✗ → follow the hint / ping the organiser.
 
 ---
 
-## 6. Pre-pull the base images (biggest time-saver)
+## 6. Optional — Guardener (AI migration, two use cases)
+
+The `guardener/` module is an **optional** side demo with two use cases, and both work
+**without any extra setup** — each ships a committed, captured result you can show. Running
+either **live** needs the Guardener **beta** on your org (entitlement-gated, per-org via the
+beta waitlist — ask your account team). If you don't have the beta, skip it — nothing else
+depends on it.
+
+- **Dockerfile migration** (`guardener/dockerfile/`): a one-time `chainctl agent accept-terms`
+  (needs the `guardener.admin` role) plus the `guardener.user` role to run.
+- **Hardened GitHub Actions** (`guardener/actions/`): install the GitHub App
+  (`github.com/apps/chainguard-guardener`) and link your org with `chainctl guardener github
+  link`; on-demand migrations need the `guardener.actions.migrate` capability. Needs a GitHub
+  repo you control — captured fallback needs none of this.
+
+---
+
+## 7. Pre-pull the base images (biggest time-saver)
 
 This caches every base image locally so the live builds are fast. Do it on good wifi the day
 before (needs step 4 done first):
