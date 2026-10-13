@@ -1,0 +1,17 @@
+# Guardener Commit Verification.
+# Every commit in a PR must be signed by an authorized signer. A commit is accepted
+# if it satisfies ANY authority below.
+spec:
+  authorities:
+    # 1) Keyless (Sigstore / gitsign): commits signed by a chainguard.dev identity via Google.
+    #    This is how a developer's own signed commits pass.
+    - keyless:
+        url: https://fulcio.sigstore.dev
+        identities:
+          - subjectRegExp: '.+@chainguard\.dev$'
+            issuer: https://accounts.google.com
+      ctlog:
+        url: https://rekor.sigstore.dev
+    # 2) Static GPG key: GitHub's web-flow key, so commits made in the GitHub web UI pass.
+    - key:
+        kms: https://github.com/web-flow.gpg
