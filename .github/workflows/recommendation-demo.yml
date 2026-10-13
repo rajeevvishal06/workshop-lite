@@ -1,0 +1,14 @@
+# Throwaway workflow to test Guardener's PR-recommendation feature.
+# It uses a MUTABLE-tag action (actions/checkout@v4) on purpose. With
+# .chainguard/actions.yaml (enabled: true) live on main, opening a PR that adds
+# this file should make Guardener post a review comment on the `uses:` line,
+# suggesting the SHA-pinned chainguard-actions/actions-checkout equivalent.
+name: Recommendation demo
+on:
+  workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "just here so Guardener sees a mutable uses:"
