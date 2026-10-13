@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # mutable tag: whoever controls this tag controls what runs here
-      - uses: actions/checkout@v4
+      - uses: chainguard-actions/actions-checkout@59b7218bfc2eaabc464f1254f6e1dac5bda91d94 # v4
 
       # a "third-party dependency" referenced mutably — stand-in for tj-actions et al.
       - uses: ./guardener/actions/value/tag-hijack/poisoned-action
