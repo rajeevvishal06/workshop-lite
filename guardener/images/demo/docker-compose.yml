@@ -1,0 +1,8 @@
+# Compose file — Guardener reads each `image:` value and suggests the Chainguard equivalent.
+services:
+  db:
+    image: postgres:16
+  cache:
+    image: redis:7.2
+  proxy:
+    image: haproxy:2.9

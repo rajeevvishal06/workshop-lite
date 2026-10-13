@@ -1,0 +1,20 @@
+# Kubernetes manifest — Guardener reads each container `image:` and suggests a replacement.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: python:3.12
+        - name: sidecar
+          image: envoyproxy/envoy:v1.31
