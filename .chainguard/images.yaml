@@ -1,0 +1,9 @@
+# Guardener Container Image Suggestions.
+# With this file on the default branch, Guardener reviews PRs that ADD or CHANGE a
+# container image reference (Dockerfile FROM, k8s/Compose/Helm image:, etc.) and
+# comments with the Chainguard replacement. Non-blocking: it reports via a separate
+# `actions-recommender-images` check that is never "failed".
+#
+# prefer_fips defaults to true (ranks FIPS variants first); set false for standard-first.
+# The `migrate:` block (Container Image Migration) will be added as a separate step.
+enabled: true
